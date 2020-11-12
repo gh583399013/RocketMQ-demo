@@ -18,22 +18,28 @@ import java.util.concurrent.TimeUnit;
 
 public class SimpleProducer {
 
+	private DefaultMQProducer producer = null;
+
+	public void initProducer(String producerGroup){
+		// 实例化消息生产者Producer
+		DefaultMQProducer defaultMQProducer = new DefaultMQProducer(producerGroup);
+		// 设置NameServer的地址
+		defaultMQProducer.setNamesrvAddr(RocketMQConstant.TEST_NAMESERVER);
+		producer =  defaultMQProducer;
+	}
+
 	/**
 	 * Producer端发送同步消息
 	 * 这种可靠性同步地发送方式使用的比较广泛，比如：重要的消息通知，短信通知。
 	 */
 	public void sendSyncMessage(){
 		try {
-			// 实例化消息生产者Producer
-			DefaultMQProducer producer = new DefaultMQProducer("please_rename_unique_group_name");
-			// 设置NameServer的地址
-			producer.setNamesrvAddr("localhost:9876");
 			// 启动Producer实例
 			producer.start();
-			for (int i = 0; i < 100; i++) {
+			for (int i = 0; i < 1; i++) {
 				// 创建消息，并指定Topic，Tag和消息体
-				Message msg = new Message(RocketMQConstant.TEST_TOPIC_NAME /* Topic */,
-						RocketMQConstant.TEST_TAG_NAME /* Tag */,
+				Message msg = new Message(RocketMQConstant.TEST_SIMPLE_MESSAGE_TOPIC_NAME /* Topic */,
+						"TagA" /* Tag */,
 						("Hello RocketMQ " + i).getBytes(RemotingHelper.DEFAULT_CHARSET) /* Message body */
 				);
 				// 发送消息到一个Broker
@@ -42,7 +48,7 @@ public class SimpleProducer {
 				System.out.printf("%s%n", sendResult);
 
 				//发一条休眠2s 不然consumer打印太快
-				Thread.sleep(2000);
+				//Thread.sleep(2000);
 			}
 			// 如果不再发送消息，关闭Producer实例。
 			producer.shutdown();
@@ -57,10 +63,6 @@ public class SimpleProducer {
 	 */
 	public void sendAsyncMessage(){
 		try {
-			// 实例化消息生产者Producer
-			DefaultMQProducer producer = new DefaultMQProducer("please_rename_unique_group_name");
-			// 设置NameServer的地址
-			producer.setNamesrvAddr("localhost:9876");
 			// 启动Producer实例
 			producer.start();
 			producer.setRetryTimesWhenSendAsyncFailed(0);
@@ -71,7 +73,7 @@ public class SimpleProducer {
 			for (int i = 0; i < messageCount; i++) {
 				final int index = i;
 				// 创建消息，并指定Topic，Tag和消息体
-				Message msg = new Message("TopicTest",
+				Message msg = new Message(RocketMQConstant.TEST_SIMPLE_MESSAGE_TOPIC_NAME,
 						"TagA",
 						"OrderID188",
 						"Hello world".getBytes(RemotingHelper.DEFAULT_CHARSET));
@@ -89,7 +91,7 @@ public class SimpleProducer {
 					}
 				});
 				//发一条休眠2s 不然consumer打印太快
-				//Thread.sleep(2000);
+				////Thread.sleep(2000);
 			}
 			// 等待5s
 			countDownLatch.await(5, TimeUnit.SECONDS);
@@ -106,23 +108,19 @@ public class SimpleProducer {
 	 */
 	public void sendOneWayMessage(){
 		try {
-			// 实例化消息生产者Producer
-			DefaultMQProducer producer = new DefaultMQProducer("please_rename_unique_group_name");
-			// 设置NameServer的地址
-			producer.setNamesrvAddr("localhost:9876");
 			// 启动Producer实例
 			producer.start();
 			for (int i = 0; i < 100; i++) {
 				// 创建消息，并指定Topic，Tag和消息体
-				Message msg = new Message(RocketMQConstant.TEST_TOPIC_NAME /* Topic */,
-						RocketMQConstant.TEST_TAG_NAME /* Tag */,
+				Message msg = new Message(RocketMQConstant.TEST_SIMPLE_MESSAGE_TOPIC_NAME /* Topic */,
+						"TagA" /* Tag */,
 						("Hello RocketMQ " + i).getBytes(RemotingHelper.DEFAULT_CHARSET) /* Message body */
 				);
 				// 发送单向消息，没有任何返回结果
 				producer.sendOneway(msg);
 
 				//发一条休眠2s 不然consumer打印太快
-				Thread.sleep(2000);
+				//Thread.sleep(2000);
 			}
 			// 如果不再发送消息，关闭Producer实例。
 			producer.shutdown();
@@ -136,24 +134,17 @@ public class SimpleProducer {
 	 */
 	public void sendOrderlyMessage(){
 		try {
-			DefaultMQProducer producer = new DefaultMQProducer("please_rename_unique_group_name");
-
-			producer.setNamesrvAddr("127.0.0.1:9876");
-
 			producer.start();
-
 			String[] tags = new String[]{"TagA", "TagC", "TagD"};
-
 			// 订单列表
 			List<OrderStep> orderList = new OrderStep().buildOrders();
-
 			Date date = new Date();
 			SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			String dateStr = sdf.format(date);
 			for (int i = 0; i < 10; i++) {
 				// 加个时间前缀
 				String body = dateStr + " Hello RocketMQ " + orderList.get(i);
-				Message msg = new Message("TopicTest", tags[i % tags.length], "KEY" + i, body.getBytes());
+				Message msg = new Message(RocketMQConstant.TEST_ORDERLY_MESSAGE_TOPIC_NAME, tags[i % tags.length], "KEY" + i, body.getBytes());
 
 				SendResult sendResult = producer.send(msg, new MessageQueueSelector() {
 					@Override
@@ -188,9 +179,9 @@ public class SimpleProducer {
 			producer.start();
 			int totalMessagesToSend = 10;
 			for (int i = 0; i < totalMessagesToSend; i++) {
-				Message message = new Message("TopicTest", ("Hello scheduled message " + i).getBytes());
+				Message message = new Message(RocketMQConstant.TEST_DELAY_MESSAGE_TOPIC_NAME, ("Hello scheduled message " + i).getBytes());
 				// 设置延时等级3,这个消息将在10s之后发送(现在只支持固定的几个时间,详看delayTimeLevel)
-				message.setDelayTimeLevel(3);
+				message.setDelayTimeLevel(1);
 				// 发送消息
 				final int index = i;
 				producer.send(message, new SendCallback() {
@@ -205,11 +196,9 @@ public class SimpleProducer {
 						e.printStackTrace();
 					}
 				});
-				//producer.send(message);
-
 			}
 			// 关闭生产者  延时消息是异步的 这里提前关闭了  导致找不到topic
-			//producer.shutdown();
+//			producer.shutdown();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -217,7 +206,20 @@ public class SimpleProducer {
 
 	public static void main(String[] args) throws Exception {
 		SimpleProducer simpleProducer = new SimpleProducer();
-		simpleProducer.sendDelayMessage();
+
+//		simpleProducer.initProducer("SIMPLE_PRODUCER");
+//		simpleProducer.sendSyncMessage();
+
+//		simpleProducer.initProducer("SIMPLE_PRODUCER");
 //		simpleProducer.sendAsyncMessage();
+//
+//		simpleProducer.initProducer("SIMPLE_PRODUCER");
+//		simpleProducer.sendOneWayMessage();
+//
+		simpleProducer.initProducer("ORDERLY_PRODUCER");
+		simpleProducer.sendOrderlyMessage();
+//
+//		simpleProducer.initProducer("DELAY_PRODUCER");
+//		simpleProducer.sendDelayMessage();
     }
 }
