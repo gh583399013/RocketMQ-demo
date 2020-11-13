@@ -32,7 +32,11 @@ public class SimpleConsumer {
             consumer.registerMessageListener(new MessageListenerConcurrently() {
                 @Override
                 public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext context) {
-                    System.out.printf("%s Receive New Messages: %s %n", Thread.currentThread().getName(), msgs);
+                    //System.out.printf("%s Receive New Messages: %s %n", Thread.currentThread().getName(), msgs);
+                    for (MessageExt msg : msgs) {
+                        System.out.printf("%s Receive New Messages: %s %s", consumer.getConsumerGroup(), Thread.currentThread().getName(), new String(msg.getBody()));
+                        System.out.println();
+                    }
                     // 标记该消息已经被成功消费
                     return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
                 }
@@ -93,8 +97,6 @@ public class SimpleConsumer {
      */
     public void consumeDelayMessage() {
         try {
-            // 实例化消费者
-            DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("ExampleConsumer");
             // 订阅Topics
             consumer.subscribe(RocketMQConstant.TEST_DELAY_MESSAGE_TOPIC_NAME, "*");
             // 注册消息监听者
@@ -121,10 +123,35 @@ public class SimpleConsumer {
 //        simpleConsumer.initConsumer("SIMPLE_CONSUMER");
 //		simpleConsumer.consumeMessage();
 
-        simpleConsumer.initConsumer("ORDERLY_CONSUMER");
-        simpleConsumer.consumeOrderlyMessage();
+//        simpleConsumer.initConsumer("ORDERLY_CONSUMER");
+//        simpleConsumer.consumeOrderlyMessage();
 //
+
 //        simpleConsumer.initConsumer("DELAY_CONSUMER");
 //        simpleConsumer.consumeDelayMessage();
+
+        //多生产者 单消费者 测试异步消息
+//        simpleConsumer.initConsumer("SIMPLE_CONSUMER");
+//        simpleConsumer.consumeMessage();
+
+        //多生产者 多消费者 测试异步消息
+		Thread thread1 = new Thread(new Runnable() {
+			@Override
+			public void run() {
+                SimpleConsumer simpleConsumer = new SimpleConsumer();
+                simpleConsumer.initConsumer("SIMPLE_CONSUMER_A");
+                simpleConsumer.consumeMessage();
+			}
+		});
+		Thread thread2 = new Thread(new Runnable() {
+			@Override
+			public void run() {
+                SimpleConsumer simpleConsumer = new SimpleConsumer();
+                simpleConsumer.initConsumer("SIMPLE_CONSUMER_B");
+                simpleConsumer.consumeMessage();
+			}
+		});
+		thread1.start();
+		thread2.start();
     }
 }

@@ -36,11 +36,11 @@ public class SimpleProducer {
 		try {
 			// 启动Producer实例
 			producer.start();
-			for (int i = 0; i < 1; i++) {
+			for (int i = 0; i < 10; i++) {
 				// 创建消息，并指定Topic，Tag和消息体
 				Message msg = new Message(RocketMQConstant.TEST_SIMPLE_MESSAGE_TOPIC_NAME /* Topic */,
 						"TagA" /* Tag */,
-						("Hello RocketMQ " + i).getBytes(RemotingHelper.DEFAULT_CHARSET) /* Message body */
+						("Hello RocketMQ " + i + " 我来自:" + producer.getProducerGroup()).getBytes(RemotingHelper.DEFAULT_CHARSET) /* Message body */
 				);
 				// 发送消息到一个Broker
 				SendResult sendResult = producer.send(msg);
@@ -67,16 +67,14 @@ public class SimpleProducer {
 			producer.start();
 			producer.setRetryTimesWhenSendAsyncFailed(0);
 
-			int messageCount = 100;
-			// 根据消息数量实例化倒计时计算器
-			final CountDownLatch2 countDownLatch = new CountDownLatch2(messageCount);
+			int messageCount = 20;
 			for (int i = 0; i < messageCount; i++) {
 				final int index = i;
 				// 创建消息，并指定Topic，Tag和消息体
 				Message msg = new Message(RocketMQConstant.TEST_SIMPLE_MESSAGE_TOPIC_NAME,
 						"TagA",
 						"OrderID188",
-						"Hello world".getBytes(RemotingHelper.DEFAULT_CHARSET));
+						("Hello world" + " 我来自:" + producer.getProducerGroup()).getBytes(RemotingHelper.DEFAULT_CHARSET));
 				// SendCallback接收异步返回结果的回调
 				producer.send(msg, new SendCallback() {
 					@Override
@@ -91,10 +89,8 @@ public class SimpleProducer {
 					}
 				});
 				//发一条休眠2s 不然consumer打印太快
-				////Thread.sleep(2000);
+				Thread.sleep(100);
 			}
-			// 等待5s
-			countDownLatch.await(5, TimeUnit.SECONDS);
 			// 如果不再发送消息，关闭Producer实例。
 			producer.shutdown();
 		} catch (Exception e) {
@@ -181,7 +177,7 @@ public class SimpleProducer {
 			for (int i = 0; i < totalMessagesToSend; i++) {
 				Message message = new Message(RocketMQConstant.TEST_DELAY_MESSAGE_TOPIC_NAME, ("Hello scheduled message " + i).getBytes());
 				// 设置延时等级3,这个消息将在10s之后发送(现在只支持固定的几个时间,详看delayTimeLevel)
-				message.setDelayTimeLevel(1);
+				message.setDelayTimeLevel(3);
 				// 发送消息
 				final int index = i;
 				producer.send(message, new SendCallback() {
@@ -206,20 +202,46 @@ public class SimpleProducer {
 
 	public static void main(String[] args) throws Exception {
 		SimpleProducer simpleProducer = new SimpleProducer();
-
+		//单生产者 单消费者 测试同步消息
 //		simpleProducer.initProducer("SIMPLE_PRODUCER");
 //		simpleProducer.sendSyncMessage();
 
+		//单生产者 单消费者 测试异步消息
 //		simpleProducer.initProducer("SIMPLE_PRODUCER");
 //		simpleProducer.sendAsyncMessage();
-//
+
+		//单生产者 单消费者 测试单向消息
 //		simpleProducer.initProducer("SIMPLE_PRODUCER");
 //		simpleProducer.sendOneWayMessage();
-//
-		simpleProducer.initProducer("ORDERLY_PRODUCER");
-		simpleProducer.sendOrderlyMessage();
-//
+
+		//单生产者 单消费者 测试顺序消息
+//		simpleProducer.initProducer("ORDERLY_PRODUCER");
+//		simpleProducer.sendOrderlyMessage();
+
+		//单生产者 单消费者 测试延时消息
 //		simpleProducer.initProducer("DELAY_PRODUCER");
 //		simpleProducer.sendDelayMessage();
+
+		//多生产者 单消费者 测试异步消息
+		//多线程模拟多台机器集群
+		Thread thread1 = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				SimpleProducer simpleProducer = new SimpleProducer();
+				simpleProducer.initProducer("SIMPLE_PRODUCER_A");
+				simpleProducer.sendAsyncMessage();
+			}
+		});
+		Thread thread2 = new Thread(new Runnable() {
+			@Override
+			public void run() {
+				SimpleProducer simpleProducer = new SimpleProducer();
+				simpleProducer.initProducer("SIMPLE_PRODUCER_B");
+				simpleProducer.sendAsyncMessage();
+			}
+		});
+		thread1.start();
+		thread2.start();
+
     }
 }
